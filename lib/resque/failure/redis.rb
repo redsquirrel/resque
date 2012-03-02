@@ -38,7 +38,9 @@ module Resque
 
       def self.remove(index)
         id = rand(0xffffff)
-        Resque.redis.lset(:failed, index, id)
+        
+        raw_index = Resque.raw_index(:failed, index)
+        Resque.redis.lset(:failed, raw_index, id)
         Resque.redis.lrem(:failed, 1, id)
       end
 

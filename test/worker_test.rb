@@ -398,8 +398,9 @@ context "Resque::Worker" do
     Resque::Failure.create(:exception => Exception.new, :worker => Resque::Worker.new(queue), :queue => queue, :payload => {'class' => 'GoodJob'})
     Resque::Failure.create(:exception => Exception.new, :worker => Resque::Worker.new(queue2), :queue => queue2, :payload => {'class' => 'SomeJob'})
     Resque::Failure.create(:exception => Exception.new, :worker => Resque::Worker.new(queue), :queue => queue, :payload => {'class' => 'GoodJob'})
+    assert_equal 3, Resque::Failure.count
     Resque::Failure.remove_queue(queue)
-    assert_equal queue2, Resque::Failure.all(0)['queue']
     assert_equal 1, Resque::Failure.count
+    assert_equal queue2, Resque::Failure.all(0)['queue']
   end
 end

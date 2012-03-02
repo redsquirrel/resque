@@ -169,6 +169,11 @@ context "Resque" do
     assert_equal nil, Resque.pop(:people)
   end
 
+  test "can backup items when they are pulled off a queue" do
+    Resque.pop(:people)
+    assert_equal({ 'name' => 'chris' }, Resque.decode(Resque.redis.lpop("backup-queue:people")))
+  end
+
   test "knows how big a queue is" do
     assert_equal 3, Resque.size(:people)
 
@@ -183,6 +188,13 @@ context "Resque" do
   test "can peek at a queue" do
     assert_equal({ 'name' => 'chris' }, Resque.peek(:people))
     assert_equal 3, Resque.size(:people)
+  end
+  
+  test "can convert logical queue position to actual" do
+    assert_equal 2, Resque.raw_index("queue:people", 0)
+    assert_equal 1, Resque.raw_index("queue:people", 1)
+    assert_equal 0, Resque.raw_index("queue:people", 2)
+    # what to do about testing/explaining the optional count arg?
   end
 
   test "can peek multiple items on a queue" do

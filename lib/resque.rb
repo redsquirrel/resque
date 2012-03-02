@@ -148,14 +148,19 @@ module Resque
   # Returns nothing
   def push(queue, item)
     watch_queue(queue)
-    redis.rpush "queue:#{queue}", encode(item)
+    redis.lpush "queue:#{queue}", encode(item)
   end
 
   # Pops a job off a queue. Queue name should be a string.
   #
   # Returns a Ruby object.
   def pop(queue)
-    decode redis.lpop("queue:#{queue}")
+    decode redis.rpoplpush("queue:#{queue}", "backup-queue:#{queue}")
+  end
+  
+  # Removes a job off a backup-queue.
+  def remove_backup(queue, payload)
+    redis.lrem("backup-queue:#{queue}", 1, encode(payload))
   end
 
   # Returns an integer representing the size of a queue.
@@ -179,14 +184,28 @@ module Resque
   # Does the dirty work of fetching a range of items from a Redis list
   # and converting them into Ruby objects.
   def list_range(key, start = 0, count = 1)
+    start = raw_index(key, start, count)
+    
     if count == 1
+      return nil if start < 0
       decode redis.lindex(key, start)
     else
+      return [] if start < 0
       Array(redis.lrange(key, start, start+count-1)).map do |item|
         decode item
-      end
+      end.reverse # since we want the firt element to be the *next* to pop
     end
   end
+  
+  # Does the dirty work of converting from a Right-to-Left queue
+  # to the actual underlying Left-to-Right queue.
+  # For a potentially more concise/efficient approach, see:
+  # https://github.com/tobowers/resque/commit/bf31d36137486d06fc77174815f10fd99ede8bf0#L0R169
+  def raw_index(key, start, count = 1)
+    queue_size = redis.llen(key)
+    count_shift = count > queue_size ? queue_size : count
+    queue_size-start-count_shift
+  end  
 
   # Returns an array of all known Resque queues as strings.
   def queues
@@ -345,7 +364,7 @@ module Resque
   end
 
   # A shortcut to unregister_worker
-  # useful for command line tool
+  # useful for command line tools
   def remove_worker(worker_id)
     worker = Resque::Worker.find(worker_id)
     worker.unregister_worker

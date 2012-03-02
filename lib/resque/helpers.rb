@@ -19,7 +19,16 @@ module Resque
     # Given a Ruby object, returns a string suitable for storage in a
     # queue.
     def encode(object)
+      object = make_hashes_predictable(object)
       ::MultiJson.encode(object)
+    end
+
+    def make_hashes_predictable(object)
+      return object unless object.is_a?(Hash)
+
+      object.inject({}) do |hash, (k, v)|
+        hash.merge!(k.to_s => make_hashes_predictable(v))
+      end
     end
 
     # Given a string, returns a Ruby object.
