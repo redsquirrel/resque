@@ -402,4 +402,21 @@ context "Resque::Worker" do
     assert_equal queue2, Resque::Failure.all(0)['queue']
     assert_equal 1, Resque::Failure.count
   end
+
+
+
+  class ::VerifyBackupRecoveryJob
+    def self.perform(ignored)
+      raise StandardError, "This shouldn't actually get called"
+    end
+  end
+
+  test "can restore the backed-up job" do
+    worker = Resque::Worker.new("testqueue")
+    payload = { "class" => "VerifyBackupRecoveryJob", "args" => ["foo" => "bar"] }
+    Resque.redis.rpush("backup-queue:testqueue", Resque.encode(payload))
+    worker.restore_unprocessed_messages
+    assert_equal(payload, Resque.pop(:testqueue))
+  end
+
 end
