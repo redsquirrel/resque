@@ -419,4 +419,16 @@ context "Resque::Worker" do
     assert_equal(payload, Resque.pop(:testqueue))
   end
 
+
+  test "can restore the backed-up job even if the queues are '*'" do
+    worker = Resque::Worker.new("*")
+    payload = { "class" => "VerifyBackupRecoveryJob", "args" => ["foo" => "bar"] }
+    # Resque.redis.rpush("backup-queue:testqueue", Resque.encode(payload))
+    Resque::Job.create(:testqueue, VerifyBackupRecoveryJob, 'foo' => 'bar')
+    Resque.pop(:testqueue)
+    assert_equal [], Resque.redis.lrange("queue:testqueue", 0, -1)
+    worker.restore_unprocessed_messages
+    assert_equal payload, Resque.decode(Resque.redis.lrange("queue:testqueue", 0, -1).first)
+  end
+
 end

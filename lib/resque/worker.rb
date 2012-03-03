@@ -250,7 +250,7 @@ module Resque
 
 
     def restore_unprocessed_messages
-      @queues.each do |queue|
+      queues.each do |queue|
         while Resque.lpoprpush("backup-queue:#{queue}", "queue:#{queue}")
           #just moving the backup queue stuff onto the queue again
         end
